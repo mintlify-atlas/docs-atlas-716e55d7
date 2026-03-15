@@ -1,0 +1,99 @@
+{
+  "projectType": "saas",
+  "projectName": "Personal Finance Web",
+  "projectDescription": "A React-based personal finance dashboard for tracking income, expenses, and categories with charts and filtering capabilities.",
+  "theme": "almond",
+  "primaryColor": "#6366f1",
+  "lightColor": "#a5b4fc",
+  "darkColor": "#4338ca",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": ["introduction", "quickstart", "configuration"]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/dashboard",
+              "features/transactions",
+              "features/categories"
+            ]
+          },
+          {
+            "group": "User Guide",
+            "pages": [
+              "guide/login",
+              "guide/managing-transactions",
+              "guide/managing-categories",
+              "guide/settings",
+              "guide/dark-mode"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": ["api/overview"]
+          },
+          {
+            "group": "Transactions",
+            "pages": [
+              "api/transactions/list",
+              "api/transactions/create",
+              "api/transactions/update",
+              "api/transactions/delete"
+            ]
+          },
+          {
+            "group": "Categories",
+            "pages": [
+              "api/categories/list",
+              "api/categories/create",
+              "api/categories/update",
+              "api/categories/delete"
+            ]
+          },
+          {
+            "group": "Statistics",
+            "pages": [
+              "api/stats/monthly",
+              "api/stats/top-categories",
+              "api/stats/by-category"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Financial dashboard with income, expense and balance overview",
+    "Transaction management with create, edit, and delete support",
+    "Category management for organizing transactions",
+    "Interactive charts powered by ECharts for spending analysis",
+    "Filtering by year, month, category, and transaction type",
+    "Dark mode support with system preference detection",
+    "Persistent user session via localStorage",
+    "Responsive design built with Tailwind CSS"
+  ],
+  "publicApiSurface": [
+    "GET /api/transactions",
+    "POST /api/transactions",
+    "PATCH /api/transactions/:id",
+    "DELETE /api/transactions/:id",
+    "GET /api/transactions/years",
+    "GET /api/categories",
+    "POST /api/categories",
+    "PUT /api/categories/:id",
+    "DELETE /api/categories/:id",
+    "GET /api/stats/monthly",
+    "GET /api/stats/top-categories",
+    "GET /api/stats/by-category"
+  ]
+}
