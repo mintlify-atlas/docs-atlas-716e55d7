@@ -1,0 +1,101 @@
+---
+title: "Update Transaction"
+description: "Partially update an existing transaction by ID"
+---
+
+## PATCH /api/transactions/:id
+
+Updates an existing transaction. The server applies the supplied fields to the stored record and returns the full updated `Transaction` object.
+
+### Path parameter
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the transaction to update.
+</ParamField>
+
+### Request body
+
+A partial `Transaction` object containing the fields to update. The `id` field is read from the object and used to construct the request URL; all other fields are sent in the body.
+
+<ParamField body="type" type="string">
+  Updated transaction type: `"income"` or `"expense"`.
+</ParamField>
+
+<ParamField body="category" type="string">
+  Updated category name.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Updated description.
+</ParamField>
+
+<ParamField body="date" type="string">
+  Updated ISO date string (`YYYY-MM-DD`).
+</ParamField>
+
+<ParamField body="amount" type="number">
+  Updated monetary amount.
+</ParamField>
+
+### Function signature
+
+```typescript
+export async function updateTransaction(
+  item: Transaction,
+): Promise<Transaction> {
+  const response = await fetch(`${API_URL}/api/transactions/${item.id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(item),
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      data.message ?? `Error editing transaction (${response.status})`,
+    );
+  }
+
+  return response.json();
+}
+```
+
+<Note>
+  The client function accepts a full `Transaction` object (including `id`). The
+  `id` is used to build the URL path; the entire object is also sent as the
+  request body, so the server may use whichever fields it needs.
+</Note>
+
+### Example request
+
+```bash
+curl -X PATCH "${VITE_API_URL}/api/transactions/txn_03" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "txn_03",
+    "type": "expense",
+    "category": "Groceries",
+    "description": "Weekly shop — updated",
+    "date": "2024-03-10",
+    "amount": 92.00
+  }'
+```
+
+### Example response
+
+```json
+{
+  "id": "txn_03",
+  "type": "expense",
+  "category": "Groceries",
+  "description": "Weekly shop — updated",
+  "date": "2024-03-10",
+  "amount": 92.00
+}
+```
+
+### Error handling
+
+On failure the function throws an `Error` with a message sourced from `data.message` or the fallback `Error editing transaction (<status>)`.

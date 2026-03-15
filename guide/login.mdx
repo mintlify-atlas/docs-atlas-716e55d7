@@ -1,0 +1,108 @@
+---
+title: Login & Authentication
+description: How to create a session and access protected routes in Personal Finance.
+---
+
+The application uses a lightweight client-side authentication model. There is no backend sign-up or password — a session is created by choosing a username and avatar, then stored in `localStorage`.
+
+## Login flow
+
+<Steps>
+  <Step title="Navigate to /login">
+    Unauthenticated users are automatically redirected to `/login` by the `ProtectedRoute` component. You can also open the URL directly.
+  </Step>
+
+  <Step title="Choose an avatar">
+    Click the avatar circle at the top of the card. A modal (`ModalProfile` with `typeModal="photo"`) opens and displays a 3-column grid of **10 DiceBear Dylan** avatars to choose from.
+
+    Selecting an avatar closes the modal and updates the preview immediately.
+  </Step>
+
+  <Step title="Enter a username">
+    Type a display name in the **Username** field. The field is `required` and submission is blocked if the value is empty or whitespace-only.
+  </Step>
+
+  <Step title="Submit the form">
+    Click **Create Account**. The `saveUser` handler from `SettingsContext` is called:
+
+    ```typescript
+    const saveUser = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      if (userName.trim() === "") return;
+
+      setUser({ userName, userAvatar });
+      navigateTo("/");
+    };
+    ```
+
+    The session is persisted to `localStorage` via a `useEffect` that watches the `user` state:
+
+    ```typescript
+    useEffect(() => {
+      if (user) {
+        localStorage.setItem('user-login-finances', JSON.stringify(user));
+      } else {
+        localStorage.removeItem('user-login-finances');
+      }
+    }, [user]);
+    ```
+
+    On success, the router navigates to `/` (Dashboard).
+  </Step>
+</Steps>
+
+## Session shape
+
+The `UserSession` type is defined in `src/types/types.tsx`:
+
+```typescript
+export type UserSession = {
+  userName: string;
+  userAvatar: string;
+};
+```
+
+The serialized value is stored under the key **`user-login-finances`** in `localStorage`.
+
+## Session restoration
+
+On page load, `SettingsContextProvider` initialises the `user` state directly from `localStorage`, so the session survives a browser refresh:
+
+```typescript
+const [user, setUser] = useState<UserSession | null>(() => {
+  try {
+    const saved = localStorage.getItem("user-login-finances");
+    return saved ? JSON.parse(saved) : null;
+  } catch {
+    return null;
+  }
+});
+```
+
+## Protected routes
+
+`src/components/ProtectedRoute.tsx` guards every authenticated page. If `user` is `null`, it issues a client-side redirect to `/login`:
+
+```typescript
+export default function ProtectedRoute() {
+  const { user } = useSettings();
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <Outlet />;
+}
+```
+
+All application routes (Dashboard, Transactions, Categories, Settings) are wrapped by this component.
+
+## Logging out
+
+Calling `logout()` from `SettingsContext` sets `user` to `null`, which triggers the `useEffect` above to remove the `localStorage` key, ending the session:
+
+```typescript
+const logout = () => setUser(null);
+```
+
+The user is then redirected to `/login` by `ProtectedRoute` on the next render.

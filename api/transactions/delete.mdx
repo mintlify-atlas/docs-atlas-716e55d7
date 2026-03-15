@@ -1,0 +1,54 @@
+---
+title: "Delete Transaction"
+description: "Permanently remove a transaction by ID"
+---
+
+## DELETE /api/transactions/:id
+
+Deletes the specified transaction. A successful deletion returns `204 No Content` with no response body.
+
+### Path parameter
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the transaction to delete.
+</ParamField>
+
+### Function signature
+
+```typescript
+export async function deleteTransaction(id: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/transactions/${id}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      data.message ?? `Error delete transition (${response.status})`,
+    );
+  }
+}
+```
+
+### Example request
+
+```bash
+curl -X DELETE "${VITE_API_URL}/api/transactions/txn_03"
+```
+
+### Response
+
+Returns `204 No Content` on success. The function returns `void` — there is no response body to parse.
+
+### Error handling
+
+On failure the function throws an `Error`. The message is sourced from:
+
+1. `data.message` in the JSON response body, if present.
+2. A fallback string containing the HTTP status code: `Error delete transition (404)`.
+
+<Warning>
+  Deletion is permanent. The transaction cannot be recovered after this call
+  succeeds. Ensure the correct `id` is confirmed (e.g. via a confirmation modal)
+  before invoking this function.
+</Warning>

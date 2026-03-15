@@ -1,0 +1,94 @@
+---
+title: "Create Transaction"
+description: "Add a new income or expense transaction"
+---
+
+## POST /api/transactions
+
+Creates a new transaction and returns the persisted record with its server-assigned `id`.
+
+### Request body
+
+<ParamField body="type" type="string" required>
+  Transaction type. Must be `"income"` or `"expense"`.
+</ParamField>
+
+<ParamField body="category" type="string" required>
+  Name of the category to associate with this transaction.
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  Human-readable description of the transaction.
+</ParamField>
+
+<ParamField body="date" type="string" required>
+  ISO date string in `YYYY-MM-DD` format representing the transaction date.
+</ParamField>
+
+<ParamField body="amount" type="number" required>
+  Monetary amount of the transaction. Must be a positive number.
+</ParamField>
+
+### Function signature
+
+```typescript
+export async function createTransaction(
+  newItem: Transaction,
+): Promise<Transaction> {
+  const response = await fetch(`${API_URL}/api/transactions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(newItem),
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      data.message ?? `Error adding transaction (${response.status})`,
+    );
+  }
+
+  return response.json();
+}
+```
+
+### Example request
+
+```bash
+curl -X POST "${VITE_API_URL}/api/transactions" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "expense",
+    "category": "Groceries",
+    "description": "Weekly shop",
+    "date": "2024-03-10",
+    "amount": 87.50
+  }'
+```
+
+### Example response
+
+```json
+{
+  "id": "txn_03",
+  "type": "expense",
+  "category": "Groceries",
+  "description": "Weekly shop",
+  "date": "2024-03-10",
+  "amount": 87.50
+}
+```
+
+### Error handling
+
+On failure the function throws an `Error`. The message is sourced from:
+
+1. `data.message` in the JSON response body, if present.
+2. A fallback string containing the HTTP status code: `Error adding transaction (422)`.
+
+<Warning>
+  Do not include an `id` field in the request body. The server assigns the
+  identifier and will ignore or reject a client-supplied value.
+</Warning>

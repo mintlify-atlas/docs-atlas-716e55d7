@@ -1,0 +1,199 @@
+---
+title: Categories
+description: Manage the categories used to classify income and expense transactions.
+---
+
+Categories are the labels used to classify transactions. Every transaction must reference a category by name. The Categories page provides a full CRUD interface for managing the available category list.
+
+## Overview
+
+<CardGroup cols={2}>
+  <Card title="Category List" icon="list">
+    All categories are displayed in a table with their name and action buttons for editing and deleting. The table handles its own loading and error states.
+  </Card>
+  <Card title="Create & Edit Modal" icon="pen-to-square">
+    A modal form with a single name field handles both creating new categories and renaming existing ones.
+  </Card>
+</CardGroup>
+
+## The `Category` Type
+
+```typescript
+// src/types/types.tsx
+export type Category = {
+  id?: string   // Assigned by the server; absent on new (unsaved) categories
+  name: string
+}
+```
+
+Categories are linked to transactions via the `category` field on the `Transaction` type, which stores the category **name** as a plain string:
+
+```typescript
+// src/types/types.tsx
+export type Transaction = {
+  id?: string
+  type: "income" | "expense"
+  category: string   // Matches Category.name
+  description: string
+  date: string
+  amount: number
+}
+```
+
+## Creating a Category
+
+<Steps>
+  <Step title="Open the modal">
+    Click the **+ New Category** button in the page header. This opens `ModalCategory` with `title="Create"` and `formData` initialised to `{ name: '' }`.
+
+    ```typescript
+    // src/pages/Categories.tsx
+    const [formData, setFormData] = useState<Category>({ name: '' })
+    ```
+  </Step>
+  <Step title="Enter a name">
+    Type a descriptive name in the **Category Name** field. The name must be unique — it is used as the primary reference key in transaction records.
+  </Step>
+  <Step title="Submit">
+    Confirm the form. The modal calls `createCategory(formData)`, which sends a `POST` to `/api/categories`. On success, `loadData()` re-fetches the category list.
+
+    ```typescript
+    // src/api/transactions.ts
+    export async function createCategory(newItem: Category): Promise<Category> {
+      const response = await fetch(`${API_URL}/api/categories`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newItem),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message ?? `Error adding category (${response.status})`);
+      }
+
+      return response.json();
+    }
+    ```
+  </Step>
+</Steps>
+
+## Editing a Category
+
+Each row in `CategoriesTable` has an **Edit** button. Clicking it:
+
+1. Stores the selected category (`{ id, name }`) in local state.
+2. Opens `ModalCategory` with `title="Edit"` pre-filled with the existing name.
+3. On submit, calls `updateCategory(item)` which sends a `PUT` to `/api/categories/:id`.
+
+```typescript
+// src/api/transactions.ts
+export async function updateCategory(item: Category): Promise<Category> {
+  const response = await fetch(`${API_URL}/api/categories/${item.id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(item),
+  });
+  // ...
+  return response.json();
+}
+```
+
+## Deleting a Category
+
+Clicking the **Delete** button on a row opens `ModalDelete`, which asks for confirmation with the category name displayed. On confirmation, `deleteCategory(category.id)` is called, sending `DELETE /api/categories/:id`.
+
+```typescript
+// src/components/CategoriesTable.tsx
+onConfirm={async () => {
+  if (category.id) {
+    await deleteCategory(category.id);
+  }
+}}
+```
+
+<Warning>
+  Deleting a category does not automatically update or remove transactions that reference it. Any existing transaction whose `category` field matches the deleted category name will retain that string value. Before deleting a category, reassign or delete all transactions that use it to avoid orphaned references.
+</Warning>
+
+## CategoriesTable Component
+
+`CategoriesTable` is a controlled component — it receives all state from the `Categories` page and does not manage its own fetch lifecycle.
+
+```typescript
+// src/components/CategoriesTable.tsx
+type CategoriesTable = {
+  error: string | null
+  loading: boolean
+  loadData(): Promise<void>
+  categories: Category[]
+}
+```
+
+### Rendering States
+
+| State | Trigger | UI rendered |
+|---|---|---|
+| Loading | `loading === true` | Full-width `<Loader>` spanning both columns |
+| Error | `error !== null` | `<ErrorState>` with the error message and a retry button bound to `loadData` |
+| Empty | `categories.length === 0` | `<EmptyState>` with the message "No categories yet" |
+| Populated | `categories.length > 0` | One row per category with Edit and Delete action buttons |
+
+**Error state** takes precedence and short-circuits the table render entirely:
+
+```typescript
+// src/components/CategoriesTable.tsx
+if (error) return <ErrorState title={error} onRetry={loadData} />
+```
+
+**Loading state** is rendered inside a table row so the table structure is preserved while data is in flight:
+
+```typescript
+{loading ? (
+  <tr>
+    <td colSpan={2} className="py-8">
+      <Loader description="Loading categories..." />
+    </td>
+  </tr>
+) : categories.length === 0 ? (
+  // empty state
+) : (
+  categories.map((item) => ( /* row */ ))
+)}
+```
+
+## Data Fetch Lifecycle
+
+The `Categories` page owns its fetch logic directly (no separate context):
+
+```typescript
+// src/pages/Categories.tsx
+async function loadData() {
+  setLoading(true);
+  try {
+    const c = await getCategories();  // GET /api/categories
+    setCategories(c)
+  } catch (err) {
+    setError(err instanceof Error ? err.message : "Error loading categories data");
+  } finally {
+    setLoading(false);
+  }
+}
+
+useEffect(() => {
+  loadData()
+}, [])
+```
+
+Categories are fetched once on mount. Both `ModalCategory` (create and edit) and `ModalDelete` call `loadData()` after a successful operation to keep the list in sync.
+
+## How Categories Connect to Transactions
+
+The `category` field on a `Transaction` stores the category name as a plain string — not an ID reference. This means:
+
+- The `FilterByCategory` filter on the Transactions page matches transactions by `category` name.
+- The Dashboard's category breakdown charts (`getTopCategories`, `getAllCategories`) group transactions by this string field.
+- Renaming a category via the Edit modal **does not** retroactively update existing transaction records. Only the category record itself is updated.
+
+<Tip>
+  Establish your category taxonomy before recording transactions to avoid naming inconsistencies. Use clear, stable names like "Food", "Transport", or "Salary" that you will not need to rename later.
+</Tip>

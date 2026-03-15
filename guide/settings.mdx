@@ -1,0 +1,125 @@
+---
+title: Settings
+description: Update your display name, avatar, and other account preferences.
+---
+
+The Settings page is available at `/settings` and is accessible from the **Settings** link in the sidebar navigation (`Aside` component). It exposes account management options and a danger zone for account deletion.
+
+## Updating your display name
+
+<Steps>
+  <Step title="Open Settings">
+    Click **Settings** in the sidebar.
+  </Step>
+
+  <Step title="Click 'Change name'">
+    Under **Account Settings**, click the **Change name** row. The `ModalProfile` component opens with `typeModal="name"`.
+  </Step>
+
+  <Step title="Enter a new name">
+    The current `userName` value is pre-filled. Clear it and type the new display name. The field is `required` and must be non-empty.
+  </Step>
+
+  <Step title="Save">
+    Click **Save name**. The `NameModal` calls `updateUserName(userName)` from `SettingsContext`:
+
+    ```typescript
+    const updateUserName = (name: string) => {
+      if (name.trim() === "") return;
+
+      setUser(prev => {
+        if (!prev) return prev;
+        return { ...prev, userName: name };
+      });
+    };
+    ```
+
+    The updated session object is immediately persisted to `localStorage` under `user-login-finances` via the `user` watcher `useEffect`.
+  </Step>
+</Steps>
+
+## Changing your avatar
+
+<Steps>
+  <Step title="Open Settings">
+    Click **Settings** in the sidebar.
+  </Step>
+
+  <Step title="Click 'Change photo'">
+    Under **Account Settings**, click the **Change photo** row. The `ModalProfile` component opens with `typeModal="photo"`.
+  </Step>
+
+  <Step title="Select an avatar">
+    The `AvatarModal` displays a 3-column grid of the 10 DiceBear Dylan avatars defined in `avatarsURL`. Click any avatar to select it.
+  </Step>
+
+  <Step title="Avatar is applied immediately">
+    Clicking an avatar calls `updateUserAvatar(avatar)` and closes the modal:
+
+    ```typescript
+    const updateUserAvatar = (avatar: string) => {
+      setUserAvatar(avatar);
+      setUser(prev => {
+        if (!prev) return prev;
+        return { ...prev, userAvatar: avatar };
+      });
+    };
+    ```
+
+    The new avatar is persisted to `localStorage` and reflected in the `Header` component immediately.
+  </Step>
+</Steps>
+
+## Persistence
+
+All profile changes go through the `user` state in `SettingsContext`. A `useEffect` synchronises the state to `localStorage` on every change:
+
+```typescript
+useEffect(() => {
+  if (user) {
+    localStorage.setItem('user-login-finances', JSON.stringify(user));
+  } else {
+    localStorage.removeItem('user-login-finances');
+  }
+}, [user]);
+```
+
+This means changes survive page refreshes without any backend call.
+
+## Danger Zone
+
+The **Delete account and data** button opens a `ModalDelete` confirmation. On confirmation, it:
+
+1. Removes `user-login-finances` from `localStorage`.
+2. Clears `userName` state.
+3. Sets `user` to `null`, which triggers `ProtectedRoute` to redirect to `/login`.
+
+```typescript
+onConfirm={() => {
+  localStorage.removeItem("user-login-finances");
+  setUserName("");
+  setUser(null);
+}}
+```
+
+<Warning>
+  Account deletion is permanent and cannot be undone from the UI. All locally stored session data is removed immediately.
+</Warning>
+
+## SettingsContext API reference
+
+| Export | Type | Description |
+|---|---|---|
+| `user` | `UserSession \| null` | Current authenticated session |
+| `setUser` | `Dispatch` | Directly set the session object |
+| `userName` | `string` | Controlled input value for name fields |
+| `setUserName` | `Dispatch` | Update the name input state |
+| `userAvatar` | `string` | URL of the currently selected avatar |
+| `setUserAvatar` | `Dispatch` | Update the avatar URL state |
+| `updateUserName` | `(name: string) => void` | Validate and persist a new display name |
+| `updateUserAvatar` | `(avatar: string) => void` | Set a new avatar and persist the session |
+| `saveUser` | `(e: FormEvent) => void` | Create a new session from the login form |
+| `logout` | `() => void` | Clear the session |
+| `avatarsURL` | `string[]` | Array of 10 DiceBear avatar URLs |
+| `isDark` | `string` | Current theme: `'dark'` or `'light'` |
+| `setIsDark` | `Dispatch` | Toggle the theme |

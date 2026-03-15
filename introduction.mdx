@@ -1,0 +1,53 @@
+---
+title: "Introduction"
+description: "Personal Finance Web — a React-based dashboard for tracking your income, expenses, and financial health."
+---
+
+## What is Personal Finance Web?
+
+Personal Finance Web is a modern, responsive single-page application that gives you a clear picture of your financial life. Connect it to your backend API and you can track every transaction, organize them into categories, and analyze your spending patterns through interactive charts.
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get the app running in minutes with step-by-step setup instructions.
+  </Card>
+  <Card title="Dashboard" icon="chart-line" href="/features/dashboard">
+    Explore the financial overview dashboard with balance cards and charts.
+  </Card>
+  <Card title="Transactions" icon="arrow-right-arrow-left" href="/features/transactions">
+    Learn how to create, edit, filter, and delete financial transactions.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Explore the full REST API used to power the application.
+  </Card>
+</CardGroup>
+
+## Key features
+
+- **Financial dashboard** — At-a-glance income, expense, and balance totals with month-over-month change indicators.
+- **Transaction management** — Create, edit, and delete income or expense transactions with date, amount, category, and description.
+- **Category management** — Define custom categories to organize your transactions.
+- **Interactive charts** — Pie and bar charts powered by [Apache ECharts](https://echarts.apache.org/) for spending breakdown by category.
+- **Advanced filtering** — Filter any view by year, month, category, and transaction type.
+- **Dark mode** — Toggle between light and dark themes; system preference is detected automatically.
+- **Persistent session** — Your login session is stored in `localStorage` so you stay signed in across page refreshes.
+- **Responsive design** — Fully responsive layout built with Tailwind CSS — works on desktop, tablet, and mobile.
+
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Framework | React 19 + TypeScript |
+| Routing | React Router v7 |
+| Styling | Tailwind CSS v4 |
+| Charts | Apache ECharts + echarts-for-react |
+| HTTP client | Fetch API (native) |
+| Build tool | Vite 7 |
+
+## How it works
+
+Personal Finance Web is a pure frontend application. It talks to a REST backend through the `VITE_API_URL` environment variable. All authentication in this version is handled client-side via a simple username/avatar login stored in `localStorage` — no server-side auth is required.
+
+<Note>
+  You need a running backend that implements the REST API described in the [API Reference](/api/overview) to use the full feature set.
+</Note>

@@ -1,0 +1,73 @@
+---
+title: "By Category"
+description: "Retrieve transaction totals broken down across all categories"
+---
+
+## GET /api/stats/by-category
+
+Returns an array of `DataOptions` objects with the transaction total for every category in the requested period. This data drives the **bar / category breakdown chart** on the dashboard.
+
+### Query parameters
+
+<ParamField query="year" type="string">
+  The four-digit year to aggregate, e.g. `"2024"`. Defaults to the current year
+  when omitted.
+</ParamField>
+
+<ParamField query="month" type="string">
+  The month number (`"1"` through `"12"`) to aggregate. Defaults to the current
+  month when omitted.
+</ParamField>
+
+### Function signature
+
+```typescript
+export async function getAllCategories(filters = {}): Promise<DataOptions[]> {
+  const params = new URLSearchParams(filters);
+  const res = await fetch(`${API_URL}/api/stats/by-category?${params}`);
+  if (!res.ok) throw new Error(`Error fetching categories ${res.status}`);
+  return res.json();
+}
+```
+
+### Example request
+
+```bash
+curl "${VITE_API_URL}/api/stats/by-category?year=2024&month=3"
+```
+
+### Example response
+
+```json
+[
+  { "name": "Groceries",     "value": 320.50 },
+  { "name": "Transport",     "value": 145.00 },
+  { "name": "Entertainment", "value": 98.75 },
+  { "name": "Salary",        "value": 3200.00 },
+  { "name": "Utilities",     "value": 210.00 }
+]
+```
+
+### Response fields
+
+<ResponseField name="name" type="string">
+  Category name used as the bar chart axis label.
+</ResponseField>
+
+<ResponseField name="value" type="number">
+  Aggregated monetary total for the category within the requested period.
+</ResponseField>
+
+<Note>
+  Unlike [/api/stats/top-categories](/api/stats/top-categories), this endpoint
+  does **not** accept a `type` filter — it returns totals spanning both income
+  and expense categories. The `DashboardContext` fetches this data in parallel
+  alongside the balance and top-categories responses and stores it in the
+  `allCategories` state.
+</Note>
+
+<Tip>
+  The `DashboardContext` calls `getAllCategories(filters)` as part of
+  `fetchDashboardData()`. The result is stored in the `allCategories` state and
+  automatically refreshed when `filters` changes.
+</Tip>

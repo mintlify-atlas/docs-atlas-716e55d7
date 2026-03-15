@@ -1,0 +1,135 @@
+---
+title: "Monthly Balance"
+description: "Retrieve aggregated income, expense, and balance figures for a given month"
+---
+
+## GET /api/stats/monthly
+
+Returns a `Balance` object containing current-period totals, previous-period totals, and the percentage or absolute change between them. This endpoint powers the summary cards at the top of the dashboard.
+
+### Query parameters
+
+<ParamField query="year" type="string">
+  The four-digit year to compute statistics for, e.g. `"2024"`. Defaults to the
+  current year when omitted.
+</ParamField>
+
+<ParamField query="month" type="string">
+  The month number (`"1"` through `"12"`) to compute statistics for. Defaults
+  to the current month when omitted.
+</ParamField>
+
+### Function signature
+
+```typescript
+export async function getBalance(filters = {}): Promise<Balance> {
+  const params = new URLSearchParams(filters);
+  const res = await fetch(`${API_URL}/api/stats/monthly?${params}`);
+  if (!res.ok) throw new Error(`"Error loading balance ${res.status}`);
+  return res.json();
+}
+```
+
+### TypeScript interface
+
+```typescript
+type NumberOrNull = number | null;
+
+export interface Balance {
+  transactionsAmount: {
+    current: {
+      income:  NumberOrNull;
+      expense: NumberOrNull;
+      balance: NumberOrNull;
+    };
+    previous: {
+      income:  NumberOrNull;
+      expense: NumberOrNull;
+      balance: NumberOrNull;
+    };
+  };
+  change: {
+    income:  NumberOrNull;
+    expense: NumberOrNull;
+    balance: NumberOrNull;
+  };
+}
+```
+
+<Note>
+  All numeric fields use `number | null`. A `null` value indicates that no data
+  exists for that period (e.g. there are no transactions in the previous month).
+</Note>
+
+### Example request
+
+```bash
+curl "${VITE_API_URL}/api/stats/monthly?year=2024&month=3"
+```
+
+### Example response
+
+```json
+{
+  "transactionsAmount": {
+    "current":  { "income": 3200.00, "expense": 1450.75, "balance": 1749.25 },
+    "previous": { "income": 3000.00, "expense": 1300.00, "balance": 1700.00 }
+  },
+  "change": {
+    "income":  6.67,
+    "expense": 11.60,
+    "balance": 2.90
+  }
+}
+```
+
+### Response fields
+
+<ResponseField name="transactionsAmount" type="object">
+  Totals for the current and previous periods.
+  <Expandable title="properties">
+    <ResponseField name="transactionsAmount.current" type="object">
+      Totals for the requested period.
+      <Expandable title="properties">
+        <ResponseField name="income" type="number | null">
+          Total income for the current period.
+        </ResponseField>
+        <ResponseField name="expense" type="number | null">
+          Total expenses for the current period.
+        </ResponseField>
+        <ResponseField name="balance" type="number | null">
+          Net balance (`income - expense`) for the current period.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="transactionsAmount.previous" type="object">
+      Totals for the period immediately before the requested one.
+      <Expandable title="properties">
+        <ResponseField name="income" type="number | null">
+          Total income for the previous period.
+        </ResponseField>
+        <ResponseField name="expense" type="number | null">
+          Total expenses for the previous period.
+        </ResponseField>
+        <ResponseField name="balance" type="number | null">
+          Net balance for the previous period.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="change" type="object">
+  Period-over-period change values (e.g. percentage change).
+  <Expandable title="properties">
+    <ResponseField name="income" type="number | null">
+      Change in income compared to the previous period.
+    </ResponseField>
+    <ResponseField name="expense" type="number | null">
+      Change in expenses compared to the previous period.
+    </ResponseField>
+    <ResponseField name="balance" type="number | null">
+      Change in net balance compared to the previous period.
+    </ResponseField>
+  </Expandable>
+</ResponseField>

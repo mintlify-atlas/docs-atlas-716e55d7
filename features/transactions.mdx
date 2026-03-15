@@ -1,0 +1,235 @@
+---
+title: Transactions
+description: Create, view, edit, delete, and filter your income and expense transactions.
+---
+
+The Transactions page is the primary data-entry surface of the app. It displays all transactions in a paginated table and provides a modal form for creating and editing records.
+
+## Overview
+
+<CardGroup cols={2}>
+  <Card title="Table View" icon="table">
+    All transactions are shown in a responsive table with columns for Date, Description, Category, Amount, and Actions. The table supports inline edit and delete via modals.
+  </Card>
+  <Card title="Create & Edit Modal" icon="pen-to-square">
+    A shared modal form handles both creating new transactions and editing existing ones. The form defaults to today's date and the "expense" type on creation.
+  </Card>
+  <Card title="Advanced Filtering" icon="filter">
+    Filter by year, month, category, and type simultaneously. A reset button clears all active filters at once.
+  </Card>
+  <Card title="Pagination" icon="arrow-right">
+    Large transaction sets are split across pages. The current page and total page count are tracked in `TransactionsContext`.
+  </Card>
+</CardGroup>
+
+## The `Transaction` Type
+
+```typescript
+// src/types/types.tsx
+export type Transaction = {
+  id?: string           // Assigned by the server; absent on new (unsaved) records
+  type: "income" | "expense"
+  category: string      // Must match an existing Category name
+  description: string
+  date: string          // ISO date string: "YYYY-MM-DD"
+  amount: number
+}
+```
+
+<Note>
+  `id` is optional because a transaction object is constructed client-side (without an `id`) before it is saved. The server assigns and returns the `id` after a successful `POST`.
+</Note>
+
+## Filter Controls
+
+The filter bar at the top of the page contains five controls rendered from `Filters.tsx`:
+
+| Control | Component | Options |
+|---|---|---|
+| Year | `FilterByYear` | Dynamically loaded from `GET /api/transactions/years` |
+| Month | `FilterByMonth` | January – December (values `"1"` – `"12"`) |
+| Category | `FilterByCategory` | All categories from `TransactionsContext` |
+| Type | `FilterByType` | `"income"`, `"expense"`, or all |
+| Reset | `FilterButton` | Clears all filters via `resetFilters()` |
+
+Filters are stored in `TransactionsContext` and passed to every API call. Changing any filter re-fetches the full transaction list.
+
+```typescript
+// src/types/types.tsx
+export type Filters = {
+  type?: string
+  category?: string
+  year?: string
+  month?: string
+}
+```
+
+## Creating a Transaction
+
+<Steps>
+  <Step title="Open the modal">
+    Click the **+ New Transaction** button in the page header. This opens `ModalTransaction` with `title="Create"` and resets `formData` to the initial state:
+
+    ```typescript
+    // src/pages/Transactions.tsx
+    const getInitialTransaction = (): Transaction => ({
+      description: '',
+      amount: 0,
+      type: 'expense',
+      category: 'Food',
+      date: getTodayLocalDate()  // "YYYY-MM-DD" in the local timezone
+    })
+    ```
+  </Step>
+  <Step title="Fill in the form fields">
+    Complete all required fields in the modal:
+
+    | Field | Input type | Notes |
+    |---|---|---|
+    | Description | Text | Free-form label for the transaction |
+    | Amount | Number | Positive value; the type field determines sign |
+    | Type | Select | `income` or `expense` |
+    | Category | Select | Populated from the saved categories list |
+    | Date | Date picker | Defaults to today's local date |
+  </Step>
+  <Step title="Submit">
+    Confirm the form. The modal calls `createTransaction(formData)` which sends a `POST` to `/api/transactions` with the transaction payload as JSON. On success, `loadData()` is called to refresh the table.
+
+    ```typescript
+    // src/api/transactions.ts
+    export async function createTransaction(newItem: Transaction): Promise<Transaction> {
+      const response = await fetch(`${API_URL}/api/transactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newItem),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message ?? `Error adding transaction (${response.status})`);
+      }
+
+      return response.json();
+    }
+    ```
+  </Step>
+</Steps>
+
+## Income vs. Expense Examples
+
+<Tabs>
+  <Tab title="Income transaction">
+    ```typescript
+    const salaryTransaction: Transaction = {
+      type: "income",
+      category: "Salary",
+      description: "Monthly salary",
+      date: "2026-03-15",
+      amount: 3500
+    }
+    ```
+
+    Income transactions increase the balance and are reflected in `transactionsAmount.current.income` on the Dashboard.
+  </Tab>
+  <Tab title="Expense transaction">
+    ```typescript
+    const groceryTransaction: Transaction = {
+      type: "expense",
+      category: "Food",
+      description: "Weekly groceries",
+      date: "2026-03-15",
+      amount: 120
+    }
+    ```
+
+    Expense transactions reduce the balance and contribute to the category-breakdown charts on the Dashboard. The default type for the creation form is `"expense"`.
+  </Tab>
+</Tabs>
+
+## Editing a Transaction
+
+Each row in the `TransactionsTable` exposes an **Edit** action. Clicking it:
+
+1. Sets `formData` in `TransactionsContext` to the selected transaction (including its `id`).
+2. Opens `ModalTransaction` with `title="Edit"`.
+3. On submit, calls `updateTransaction(formData)` which sends a `PATCH` to `/api/transactions/:id`.
+
+```typescript
+// src/api/transactions.ts
+export async function updateTransaction(item: Transaction): Promise<Transaction> {
+  const response = await fetch(`${API_URL}/api/transactions/${item.id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(item),
+  });
+  // ...
+  return response.json();
+}
+```
+
+## Deleting a Transaction
+
+Clicking the **Delete** action on a row opens `ModalDelete`, which shows a confirmation prompt with the transaction's description. On confirmation:
+
+1. `deleteTransaction(formData.id)` is called — sends `DELETE /api/transactions/:id`.
+2. `loadData()` re-fetches the transaction list.
+
+```typescript
+// src/components/TransactionsTable.tsx
+onConfirm={async () => {
+  if (formData.id) {
+    await deleteTransaction(formData.id);
+    await loadData();
+  }
+}}
+```
+
+## Pagination
+
+Pagination is handled by the `usePagination` hook and exposed through `TransactionsContext`:
+
+| Value | Type | Description |
+|---|---|---|
+| `pagedResults` | `Transaction[]` | The slice of transactions for the current page |
+| `currentPage` | `number` | 1-indexed current page |
+| `totalPages` | `number` | Total number of pages |
+
+The `<Pagination>` component is rendered below the table and updates `currentPage` in context.
+
+## Loading & Error States
+
+**Loading:** While `loading` is `true` in `TransactionsContext`, the table body renders a full-width `<Loader>` cell spanning all five columns.
+
+**Error:** If the data fetch fails, the page renders `<ErrorState>` with the error message and an **onRetry** callback bound to `resetFilters()`, which re-triggers the fetch.
+
+**Empty:** When `pagedResults` is empty (e.g. no transactions match the active filters), an inline empty state is shown inside the table with a **"Clear Filters"** button:
+
+```typescript
+// src/components/TransactionsTable.tsx
+<EmptyState
+  title="No transactions found"
+  description="We couldn't find any transactions with the applied filters"
+  onReset={resetFilters}
+  titleOnReset="Clear Filters"
+/>
+```
+
+## Context & Data Flow
+
+`TransactionsContextProvider` composes three hooks:
+
+```typescript
+// src/context/TransactionsContext.tsx
+const { transactions, loading, error, filters,
+        updateFilter, resetFilters, categories, loadData } = useTransactionsFetch()
+const { pagedResults, totalPages, currentPage } = usePagination(transactions)
+const { isModalEditOpen, setIsModalEditOpen,
+        isModalDeleteOpen, setIsModalDeleteOpen,
+        formData, setFormData } = useTransactionForm()
+```
+
+| Hook | Responsibility |
+|---|---|
+| `useTransactionsFetch` | Fetches transactions and categories from the API; manages filter state |
+| `usePagination` | Slices the full transaction array into pages |
+| `useTransactionForm` | Manages modal open/close state and the active `formData` object |

@@ -1,0 +1,75 @@
+---
+title: "Update Category"
+description: "Replace a category's details by ID"
+---
+
+## PUT /api/categories/:id
+
+Replaces the full category record. The server uses the `id` from the URL path to locate the record and overwrites it with the supplied body.
+
+### Path parameter
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the category to update.
+</ParamField>
+
+### Request body
+
+A full `Category` object. Both fields are required for a `PUT` operation.
+
+<ParamField body="id" type="string" required>
+  The category ID (should match the path parameter).
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  The updated category name.
+</ParamField>
+
+### Function signature
+
+```typescript
+export async function updateCategory(item: Category): Promise<Category> {
+  const response = await fetch(`${API_URL}/api/categories/${item.id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(item),
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      data.message ?? `Error editing category (${response.status})`,
+    );
+  }
+
+  return response.json();
+}
+```
+
+### Example request
+
+```bash
+curl -X PUT "${VITE_API_URL}/api/categories/cat_04" \
+  -H "Content-Type: application/json" \
+  -d '{"id": "cat_04", "name": "Leisure"}'
+```
+
+### Example response
+
+```json
+{
+  "id": "cat_04",
+  "name": "Leisure"
+}
+```
+
+### Error handling
+
+On failure the function throws an `Error` with a message sourced from `data.message` or the fallback `Error editing category (<status>)`.
+
+<Note>
+  This endpoint uses `PUT` (full replacement) rather than `PATCH`. Always send
+  the complete `Category` object, not a partial update.
+</Note>

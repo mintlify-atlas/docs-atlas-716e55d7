@@ -1,0 +1,55 @@
+---
+title: "List Categories"
+description: "Retrieve all available transaction categories"
+---
+
+## GET /api/categories
+
+Returns an array of all `Category` objects stored in the system. This list is used to populate category dropdowns throughout the UI.
+
+### Parameters
+
+This endpoint accepts no query parameters.
+
+### Function signature
+
+```typescript
+export async function getCategories(): Promise<Category[]> {
+  const res = await fetch(`${API_URL}/api/categories`);
+  if (!res.ok) throw new Error(`Error fetching categories ${res.status}`);
+  return res.json();
+}
+```
+
+### Example request
+
+```bash
+curl "${VITE_API_URL}/api/categories"
+```
+
+### Example response
+
+```json
+[
+  { "id": "cat_01", "name": "Groceries" },
+  { "id": "cat_02", "name": "Transport" },
+  { "id": "cat_03", "name": "Salary" }
+]
+```
+
+### Response fields
+
+<ResponseField name="id" type="string">
+  Server-assigned unique identifier for the category.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Human-readable category name.
+</ResponseField>
+
+<Tip>
+  The `useTransactionsFetch` hook calls `getCategories()` once on mount and
+  exposes the result as `categories` via `TransactionsContext`. Components that
+  need the category list should consume the context rather than calling this
+  function directly.
+</Tip>

@@ -1,0 +1,84 @@
+---
+title: Dark Mode
+description: How the application detects, stores, and applies the colour scheme preference.
+---
+
+Personal Finance supports light and dark colour schemes. The active theme is controlled by the `isDark` state in `SettingsContext`, persisted in `localStorage`, and applied by toggling the `dark` class on the document root.
+
+## Toggling dark mode
+
+<Steps>
+  <Step title="Open Settings">
+    Click **Settings** in the sidebar.
+  </Step>
+
+  <Step title="Find the Dark Mode toggle">
+    Under **Account Settings**, the **Dark Mode** row shows a pill-shaped toggle switch. The toggle reflects the current state: blue and slid right when dark mode is on, grey and slid left when it is off.
+  </Step>
+
+  <Step title="Click the toggle">
+    Clicking calls `toggleDarkMode()` in the Settings page's local `DarkModeToggle` component:
+
+    ```typescript
+    const toggleDarkMode = () => {
+      setIsDark(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
+    };
+    ```
+
+    The new value is written to `SettingsContext` state, which triggers the theme `useEffect` and updates both the DOM and `localStorage` immediately.
+  </Step>
+</Steps>
+
+<Note>
+  The sidebar header also contains a standalone `DarkModeToggle` component (`src/components/DarkModeToggle.tsx`) that shows an **Appearance** button with a sun/moon emoji. Both controls manipulate the same underlying theme mechanism.
+</Note>
+
+## System preference detection
+
+On the very first visit (before any preference has been saved), the app reads the OS-level colour scheme via the `prefers-color-scheme` media query. This initialisation happens in the `isDark` state lazy initialiser inside `SettingsContextProvider`:
+
+```typescript
+const [isDark, setIsDark] = useState(() => {
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme) {
+    return savedTheme;
+  }
+  if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    return 'dark';
+  }
+  return 'light';
+});
+```
+
+Priority order:
+1. Saved `localStorage` value (user's explicit choice).
+2. OS / browser `prefers-color-scheme` media query.
+3. Falls back to `'light'`.
+
+## Theme persistence
+
+Every time `isDark` changes, a `useEffect` in `SettingsContextProvider` applies the class to the document root and saves the value to `localStorage`:
+
+```typescript
+useEffect(() => {
+  const root = document.documentElement;
+  if (isDark === 'dark') {
+    root.classList.add('dark');
+  } else {
+    root.classList.remove('dark');
+  }
+  localStorage.setItem('theme', isDark);
+}, [isDark]);
+```
+
+| `localStorage` key | Possible values |
+|---|---|
+| `theme` | `'dark'` \| `'light'` |
+
+## How styles are applied
+
+Adding the `dark` class to `document.documentElement` activates Tailwind CSS's `dark:` variant across every component in the application. No page reload is required — the change is instantaneous.
+
+## Scope
+
+Because the class is applied to the document root and the `isDark` state lives in the top-level `SettingsContext`, dark mode is consistent across **all pages** — Dashboard, Transactions, Categories, and Settings — for the lifetime of the session.

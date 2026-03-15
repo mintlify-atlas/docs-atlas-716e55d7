@@ -1,0 +1,64 @@
+---
+title: "Create Category"
+description: "Add a new transaction category"
+---
+
+## POST /api/categories
+
+Creates a new category and returns the persisted record with its server-assigned `id`.
+
+### Request body
+
+<ParamField body="name" type="string" required>
+  The display name for the new category. Must be unique.
+</ParamField>
+
+### Function signature
+
+```typescript
+export async function createCategory(newItem: Category): Promise<Category> {
+  const response = await fetch(`${API_URL}/api/categories`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(newItem),
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      data.message ?? `Error adding category (${response.status})`,
+    );
+  }
+
+  return response.json();
+}
+```
+
+### Example request
+
+```bash
+curl -X POST "${VITE_API_URL}/api/categories" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Entertainment"}'
+```
+
+### Example response
+
+```json
+{
+  "id": "cat_04",
+  "name": "Entertainment"
+}
+```
+
+### Error handling
+
+On failure the function throws an `Error` with a message sourced from `data.message` or the fallback `Error adding category (<status>)`.
+
+<Note>
+  Do not supply an `id` in the request body. The server generates the identifier
+  and the `id` field in the `Category` type is marked optional (`id?`) for this
+  reason.
+</Note>

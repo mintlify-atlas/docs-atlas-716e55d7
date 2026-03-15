@@ -1,0 +1,89 @@
+---
+title: Managing Categories
+description: Create, rename, and delete the categories used to classify transactions.
+---
+
+Categories are labels you attach to transactions (e.g. "Food", "Salary", "Utilities"). They are managed on the dedicated `/categories` page and are referenced by name inside each `Transaction` record.
+
+## Category shape
+
+```typescript
+export type Category = {
+  id?: string;
+  name: string;
+};
+```
+
+## Creating a category
+
+<Steps>
+  <Step title="Navigate to /categories">
+    Click **Categories** in the sidebar.
+  </Step>
+
+  <Step title="Open the create modal">
+    Click the **+ New Category** button. The `ModalCategory` component opens with `title="Create"` and an empty name field.
+  </Step>
+
+  <Step title="Enter a name">
+    Type a name for the category. The field cannot be empty or whitespace-only:
+
+    ```typescript
+    const validate = (data: Category): string | null => {
+      if (!data.name.trim()) return 'The name cannot be empty.';
+      return null;
+    };
+    ```
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The modal calls `createCategory(formData)` from the API layer, refreshes the category list, and closes.
+  </Step>
+</Steps>
+
+## Editing a category
+
+<Steps>
+  <Step title="Locate the category">
+    Find the category row in the list on the `/categories` page.
+  </Step>
+
+  <Step title="Open the edit modal">
+    Click the **edit** button for that category. The `ModalCategory` component opens with `title="Edit"` and the current name pre-filled.
+  </Step>
+
+  <Step title="Update the name and save">
+    Change the name and click **Save**. The modal calls `updateCategory(formData)` and refreshes the list.
+  </Step>
+</Steps>
+
+## Deleting a category
+
+<Steps>
+  <Step title="Locate the category">
+    Find the category row in the list.
+  </Step>
+
+  <Step title="Open the delete confirmation">
+    Click the **delete** button. The `ModalDelete` component opens with the prompt **"This action cannot be undone."**
+  </Step>
+
+  <Step title="Confirm deletion">
+    Click **Delete** to permanently remove the category. Click **Cancel** to abort.
+  </Step>
+</Steps>
+
+<Warning>
+  Deleting a category does **not** automatically update existing transactions that reference it by name. Any transaction whose `category` field matches the deleted category name will retain that value as a plain string. Review and reassign affected transactions before deleting a category that is in active use.
+</Warning>
+
+## How categories relate to transactions
+
+When creating or editing a transaction, the **Category** field is populated from the live list of categories returned by `getCategories()`. The selected category name is stored directly on the `Transaction` record as a string — there is no foreign-key relationship. This means:
+
+- Renaming a category does **not** back-fill existing transactions.
+- Deleting a category leaves orphaned string values on past transactions.
+
+<Note>
+  Keep category names stable once transactions have been recorded against them. If a rename is necessary, update affected transactions manually afterwards.
+</Note>

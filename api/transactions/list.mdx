@@ -1,0 +1,125 @@
+---
+title: "List Transactions & Years"
+description: "Retrieve transactions with optional filters, and fetch all years that contain transactions"
+---
+
+## GET /api/transactions
+
+Returns an array of `Transaction` objects. All query parameters are optional; omitting them returns the full transaction list.
+
+### Query parameters
+
+<ParamField query="type" type="string">
+  Filter by transaction type. Accepted values: `"income"` or `"expense"`.
+</ParamField>
+
+<ParamField query="category" type="string">
+  Filter by category name (exact match).
+</ParamField>
+
+<ParamField query="year" type="string">
+  Filter by year, e.g. `"2024"`.
+</ParamField>
+
+<ParamField query="month" type="string">
+  Filter by month number, e.g. `"1"` through `"12"`.
+</ParamField>
+
+### Function signature
+
+```typescript
+export async function getTransactions(filters = {}): Promise<Transaction[]> {
+  const params = new URLSearchParams(filters);
+  const res = await fetch(`${API_URL}/api/transactions?${params}`);
+  if (!res.ok) throw new Error(`Error loading transactions: ${res.status}`);
+  return res.json();
+}
+```
+
+### Example request
+
+```bash
+curl "${VITE_API_URL}/api/transactions?type=expense&year=2024&month=3"
+```
+
+### Example response
+
+```json
+[
+  {
+    "id": "txn_01",
+    "type": "expense",
+    "category": "Groceries",
+    "description": "Weekly shop",
+    "date": "2024-03-10",
+    "amount": 87.50
+  },
+  {
+    "id": "txn_02",
+    "type": "expense",
+    "category": "Transport",
+    "description": "Monthly bus pass",
+    "date": "2024-03-01",
+    "amount": 45.00
+  }
+]
+```
+
+### Response fields
+
+<ResponseField name="id" type="string">
+  Server-assigned unique identifier for the transaction.
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Transaction type: `"income"` or `"expense"`.
+</ResponseField>
+
+<ResponseField name="category" type="string">
+  Name of the category this transaction belongs to.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Free-text description of the transaction.
+</ResponseField>
+
+<ResponseField name="date" type="string">
+  ISO date string (`YYYY-MM-DD`) representing when the transaction occurred.
+</ResponseField>
+
+<ResponseField name="amount" type="number">
+  Monetary amount of the transaction (positive value for both income and expense).
+</ResponseField>
+
+---
+
+## GET /api/transactions/years
+
+Returns a sorted array of years (integers) for which at least one transaction exists. Used to populate the year filter dropdown in the UI.
+
+### Function signature
+
+```typescript
+export async function getYears(): Promise<number[]> {
+  const res = await fetch(`${API_URL}/api/transactions/years`);
+  if (!res.ok) throw new Error(`Error fetching years ${res.status}`);
+  return res.json();
+}
+```
+
+### Example request
+
+```bash
+curl "${VITE_API_URL}/api/transactions/years"
+```
+
+### Example response
+
+```json
+[2022, 2023, 2024]
+```
+
+<Note>
+  This endpoint takes no query parameters and never returns an empty array when
+  transactions exist in the database.
+</Note>

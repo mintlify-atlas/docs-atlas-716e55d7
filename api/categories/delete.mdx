@@ -1,0 +1,51 @@
+---
+title: "Delete Category"
+description: "Permanently remove a category by ID"
+---
+
+## DELETE /api/categories/:id
+
+Deletes the specified category. A successful deletion returns no response body.
+
+### Path parameter
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the category to delete.
+</ParamField>
+
+### Function signature
+
+```typescript
+export async function deleteCategory(id: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/categories/${id}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      data.message ?? `Error deleting category (${response.status})`,
+    );
+  }
+}
+```
+
+### Example request
+
+```bash
+curl -X DELETE "${VITE_API_URL}/api/categories/cat_04"
+```
+
+### Response
+
+Returns no body on success. The function returns `void`.
+
+### Error handling
+
+On failure the function throws an `Error` with a message sourced from `data.message` or the fallback `Error deleting category (<status>)`.
+
+<Warning>
+  Deleting a category that is still referenced by existing transactions may
+  cause data integrity issues depending on the backend implementation. Verify
+  that no transactions use the category before deleting it.
+</Warning>

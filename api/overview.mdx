@@ -1,0 +1,99 @@
+---
+title: "API Overview"
+description: "REST API reference for the Personal Finance Web application"
+---
+
+The Personal Finance Web app communicates with a REST backend over HTTP. All requests target the base URL configured via the `VITE_API_URL` environment variable.
+
+## Base URL
+
+```bash
+# .env
+VITE_API_URL=https://your-backend.example.com
+```
+
+Every endpoint is mounted under the `/api` prefix:
+
+```
+${VITE_API_URL}/api/<resource>
+```
+
+## Response format
+
+All endpoints return **JSON**. Successful responses carry the relevant data directly (object or array). There is no envelope wrapper.
+
+## Error handling
+
+When the HTTP response status is not `2xx`, the client throws a JavaScript `Error`. The error message is taken from `data.message` in the response body when available, falling back to the HTTP status code.
+
+```typescript
+if (!response.ok) {
+  const data = await response.json().catch(() => ({}));
+  throw new Error(data.message ?? `Error (${response.status})`);
+}
+```
+
+<Warning>
+  Always wrap API calls in `try/catch` blocks. The hooks and context providers in
+  this app surface errors via an `error: string | null` state value.
+</Warning>
+
+## TypeScript interfaces
+
+All types are defined in `src/types/types.tsx` and imported by the API module.
+
+```typescript
+// A financial transaction
+export type Transaction = {
+  id?: string;
+  type: "income" | "expense";
+  category: string;
+  description: string;
+  date: string;     // ISO date string, e.g. "2024-03-15"
+  amount: number;
+};
+
+// A transaction category
+export type Category = {
+  id?: string;
+  name: string;
+};
+
+// Monthly balance snapshot returned by /api/stats/monthly
+export interface Balance {
+  transactionsAmount: {
+    current:  { income: number | null; expense: number | null; balance: number | null };
+    previous: { income: number | null; expense: number | null; balance: number | null };
+  };
+  change: { income: number | null; expense: number | null; balance: number | null };
+}
+
+// Single data point used by chart endpoints
+export interface DataOptions {
+  value: number;
+  name: string;
+}
+
+// Query filter shape accepted by multiple endpoints
+export type Filters = {
+  type?:     string;
+  category?: string;
+  year?:     string;
+  month?:    string;
+};
+```
+
+## Endpoint groups
+
+<CardGroup cols={3}>
+  <Card title="Transactions" icon="arrow-right-arrow-left" href="/api/transactions/list">
+    List, create, update, and delete financial transactions.
+  </Card>
+  <Card title="Categories" icon="tag" href="/api/categories/list">
+    Manage the category taxonomy used to classify transactions.
+  </Card>
+  <Card title="Statistics" icon="chart-bar" href="/api/stats/monthly">
+    Aggregated monthly balance, top categories, and category breakdowns that
+    power the dashboard charts.
+  </Card>
+</CardGroup>

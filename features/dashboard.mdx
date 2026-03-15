@@ -1,0 +1,223 @@
+---
+title: Dashboard
+description: Financial overview with income, expenses, and balance for the current and previous period.
+---
+
+The Dashboard is the landing view of the Personal Finance app. It aggregates transaction data into summary cards and interactive charts, scoped to a selected month and year.
+
+## Overview
+
+<CardGroup cols={2}>
+  <Card title="Balance Cards" icon="credit-card">
+    Three summary cards display total income, total expenses, and net balance for the selected period, each with a percentage change relative to the previous period.
+  </Card>
+  <Card title="ECharts Visualizations" icon="chart-pie">
+    Interactive charts rendered with `echarts-for-react` show income vs. expenses over time, the top five spending categories, and a full category breakdown.
+  </Card>
+  <Card title="Period Filters" icon="calendar">
+    Dropdown filters for month and year let users scope all data to any period. Defaults to the current month and year on load.
+  </Card>
+  <Card title="Empty & Error States" icon="circle-exclamation">
+    When no transactions exist for a period, a contextual empty state is shown with a reset action. Network or server errors surface an inline retry UI.
+  </Card>
+</CardGroup>
+
+## The `Balance` Type
+
+All summary figures come from the `Balance` interface, which is populated by the `GET /api/stats/monthly` endpoint and stored in `DashboardContext`.
+
+```typescript
+// src/types/types.tsx
+type NumberOrNull = number | null
+
+export interface Balance {
+  transactionsAmount: {
+    current: {
+      income: NumberOrNull
+      expense: NumberOrNull
+      balance: NumberOrNull
+    }
+    previous: {
+      income: NumberOrNull
+      expense: NumberOrNull
+      balance: NumberOrNull
+    }
+  }
+  change: {
+    income: NumberOrNull
+    expense: NumberOrNull
+    balance: NumberOrNull
+  }
+}
+```
+
+| Field | Description |
+|---|---|
+| `transactionsAmount.current` | Totals for the selected period |
+| `transactionsAmount.previous` | Totals for the immediately preceding period |
+| `change` | Percentage difference between current and previous period (positive = up, negative = down) |
+
+<Note>
+  All numeric fields are typed as `number | null`. A `null` value means data was not available for that period — the UI treats `null` as `0` for display via the nullish coalescing operator.
+</Note>
+
+## Period Filters
+
+The dashboard exposes two filter controls defined in `Filters.tsx` and wired up in `DashboardContext`.
+
+```typescript
+// src/types/types.tsx
+export type Filters = {
+  type?: string
+  category?: string
+  year?: string
+  month?: string
+}
+```
+
+**`FilterByMonth`** renders a `<select>` with all 12 calendar months (values `"1"` through `"12"`). Selecting "All months" sends an empty string, causing the API to return year-to-date data.
+
+**`FilterByYear`** fetches the list of years that have at least one transaction from `GET /api/transactions/years` and populates a `<select>`. Selecting "All years" sends an empty string.
+
+The initial filter state on mount is always the **current month and year**:
+
+```typescript
+// src/context/DashboardContext.tsx
+const date = new Date();
+const currentMonth = date.getMonth() + 1;
+const currentYear = date.getFullYear();
+
+export const INITIAL_FILTERS: Filters = {
+  month: currentMonth.toString(),
+  year: currentYear.toString()
+}
+```
+
+Every filter change triggers a full re-fetch of all dashboard data via `fetchDashboardData()`.
+
+## BalanceCard Component
+
+`BalanceCard` renders three `StatCard` sub-components side by side (stacked on mobile) using the current period data and percentage changes from `balanceData`.
+
+```typescript
+// src/components/BalanceCard.tsx
+const { current } = balanceData.transactionsAmount
+const { income, expense, balance } = current
+```
+
+Each `StatCard` receives:
+
+| Prop | Type | Description |
+|---|---|---|
+| `title` | `string` | Display label (e.g. "Total incomes") |
+| `amount` | `number \| null` | The monetary value to display |
+| `change` | `number \| null` | Percentage change from the previous period |
+| `bgColor` | `string` | Tailwind background class |
+| `textColor` | `string?` | Tailwind text class for the amount (balance card turns red when negative) |
+
+The change indicator only renders when `change` is non-null and non-zero. An upward triangle (`▲`) is shown for positive changes; a downward triangle (`▼`) for negative.
+
+```typescript
+// src/components/BalanceCard.tsx
+{change !== null && change !== 0 && (
+  <p className="text-sm font-medium">
+    {change > 0 ? '▲' : '▼'} {Math.abs(change)}% compared to previous month
+  </p>
+)}
+```
+
+## ChartsCards Component
+
+`ChartsCards` renders up to three `ReactECharts` charts based on the current period's data.
+
+| Chart | Data source | Condition |
+|---|---|---|
+| Income vs. Expenses over time | `transactions` (grouped by day or month) | Always shown when there are movements |
+| Top 5 spending categories | `topCategories` from `GET /api/stats/top-categories` | Only shown when `totalExpenses > 0` |
+| Spending by all categories | `allCategories` from `GET /api/stats/by-category` | Only shown when `totalExpenses > 0` |
+
+Chart height adapts to the viewport:
+
+```typescript
+// src/context/DashboardContext.tsx
+const isMobile = width < 640;
+const isTablet = width >= 640 && width < 1024;
+const chartHeight = isMobile ? 300 : isTablet ? 350 : 400;
+```
+
+All charts respond to the system dark/light mode by observing class changes on `document.documentElement`.
+
+<Tip>
+  When only income transactions exist for a period (no expenses), the top-categories and by-category charts are replaced with an empty state message: "No expenses recorded — your transactions this period were all income."
+</Tip>
+
+## Loading State
+
+While data is being fetched, a full-section `<Loader>` component is rendered in place of both the `BalanceCard` and `ChartsCards`:
+
+```typescript
+// src/pages/Dashboard.tsx
+{error ? (
+  <ErrorState title={error} onRetry={fetchDashboardData} />
+) : loading ? (
+  <Loader description="Loading dashboard..." />
+) : (
+  <>
+    <BalanceCard />
+    {noMovements ? (
+      <EmptyStateDemo ... />
+    ) : <ChartsCards />}
+  </>
+)}
+```
+
+## Error State
+
+If any API call inside `fetchDashboardData` throws (non-OK HTTP status or network failure), the error message is surfaced via `ErrorState` with an **onRetry** callback that re-invokes `fetchDashboardData`.
+
+The error is set in `DashboardContext`:
+
+```typescript
+// src/context/DashboardContext.tsx
+} catch (err) {
+  setError(err instanceof Error ? err.message : "Error loading dashboard data");
+}
+```
+
+## Empty State
+
+The empty state is shown when both `totalIncome` and `totalExpenses` are `0` for the selected period:
+
+```typescript
+// src/pages/Dashboard.tsx
+const totalIncome = balanceData?.transactionsAmount?.current?.income ?? 0
+const totalExpenses = balanceData?.transactionsAmount?.current?.expense ?? 0
+const noMovements = totalIncome === 0 && totalExpenses === 0;
+```
+
+The empty state component includes a **"View Current Month"** reset button that restores `INITIAL_FILTERS`:
+
+```typescript
+<EmptyStateDemo
+  titleOnReset="View Current Month"
+  onReset={() => setFilters(INITIAL_FILTERS)}
+  title="No Data Available"
+  description="There are no recorded movements during this period."
+/>
+```
+
+## Data Flow
+
+All dashboard data is managed by `DashboardContextProvider` and consumed via the `useDashboard()` hook. The context fetches four endpoints in parallel whenever `filters` changes:
+
+```typescript
+// src/context/DashboardContext.tsx
+const [top, all, balance, transactions] = await Promise.all([
+  getTopCategories(filters),   // GET /api/stats/top-categories
+  getAllCategories(filters),   // GET /api/stats/by-category
+  getBalance(filters),         // GET /api/stats/monthly
+  getTransactions(filters)     // GET /api/transactions
+]);
+```
+
+In-flight requests are cancelled via a `cancelled` flag when the component unmounts or filters change before the previous fetch completes, preventing stale state updates.

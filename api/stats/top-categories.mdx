@@ -1,0 +1,77 @@
+---
+title: "Top Categories"
+description: "Retrieve the highest-spending (or earning) categories for a given period"
+---
+
+## GET /api/stats/top-categories
+
+Returns an array of `DataOptions` objects representing the categories with the highest transaction totals for the specified period and type. This data drives the **pie chart** on the dashboard.
+
+### Query parameters
+
+<ParamField query="year" type="string">
+  The four-digit year to aggregate, e.g. `"2024"`. Defaults to the current year
+  when omitted.
+</ParamField>
+
+<ParamField query="month" type="string">
+  The month number (`"1"` through `"12"`) to aggregate. Defaults to the current
+  month when omitted.
+</ParamField>
+
+<ParamField query="type" type="string">
+  Filter by transaction type: `"income"` or `"expense"`. Omit to include both
+  types.
+</ParamField>
+
+### Function signature
+
+```typescript
+export async function getTopCategories(filters = {}): Promise<DataOptions[]> {
+  const params = new URLSearchParams(filters);
+  const res = await fetch(`${API_URL}/api/stats/top-categories?${params}`);
+  if (!res.ok) throw new Error(`Error fetching categories ${res.status}`);
+  return res.json();
+}
+```
+
+### TypeScript interface
+
+```typescript
+export interface DataOptions {
+  value: number; // Aggregated total for the category
+  name:  string; // Category name
+}
+```
+
+### Example request
+
+```bash
+curl "${VITE_API_URL}/api/stats/top-categories?year=2024&month=3&type=expense"
+```
+
+### Example response
+
+```json
+[
+  { "name": "Groceries",     "value": 320.50 },
+  { "name": "Transport",     "value": 145.00 },
+  { "name": "Entertainment", "value": 98.75 }
+]
+```
+
+### Response fields
+
+<ResponseField name="name" type="string">
+  Category name used as the pie slice label.
+</ResponseField>
+
+<ResponseField name="value" type="number">
+  Aggregated monetary total for the category within the requested period.
+</ResponseField>
+
+<Tip>
+  The `DashboardContext` calls `getTopCategories(filters)` as part of the
+  `fetchDashboardData()` parallel fetch. The result is stored in the
+  `topCategories` state and re-fetched automatically whenever `filters` changes.
+</Tip>

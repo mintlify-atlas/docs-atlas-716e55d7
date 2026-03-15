@@ -1,0 +1,258 @@
+---
+title: "Configuration"
+description: "Environment variables, Vite config, TypeScript settings, and runtime storage for the Personal Finance App."
+---
+
+## Environment variables
+
+The app exposes one environment variable to the browser bundle. All variables
+must be prefixed with `VITE_` to be accessible via `import.meta.env` at
+runtime.
+
+<ParamField path="VITE_API_URL" type="string" required>
+  Base URL of the backend REST API. Used by every function in
+  `src/api/transactions.ts` to construct request URLs such as
+  `/api/transactions`, `/api/categories`, `/api/stats/monthly`, and
+  `/api/stats/top-categories`.
+
+  ```bash
+  VITE_API_URL=http://localhost:3000
+  ```
+
+  There is no default value. If the variable is undefined, all API calls will
+  target `undefined/api/...` and fail at runtime.
+</ParamField>
+
+Set environment variables in a `.env` file at the project root:
+
+```bash
+# .env
+VITE_API_URL=http://localhost:3000
+```
+
+<Warning>
+  Vite inlines environment variable values into the bundle at build time. Do
+  not store secrets in `VITE_`-prefixed variables — they will be visible in the
+  compiled JavaScript.
+</Warning>
+
+---
+
+## Vite configuration
+
+**File:** `vite.config.ts`
+
+```typescript
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+})
+```
+
+| Plugin | Package | Purpose |
+|---|---|---|
+| `react()` | `@vitejs/plugin-react` | Babel-based React Fast Refresh and JSX transform |
+| `tailwindcss()` | `@tailwindcss/vite` | First-class Tailwind CSS v4 integration via Vite |
+
+No custom `server`, `build`, or `resolve` options are set — Vite defaults
+apply. The dev server defaults to port `5173` and binds to all interfaces
+because the `dev` script passes `--host`.
+
+---
+
+## TypeScript configuration
+
+The project uses a composite TypeScript setup with three config files.
+
+### `tsconfig.json` (root)
+
+```json
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ],
+  "compilerOptions": {
+    "baseUrl": "."
+  }
+}
+```
+
+The root config is intentionally empty (`"files": []`). It exists solely to
+declare the two project references consumed by `tsc -b` during `npm run build`.
+
+### `tsconfig.app.json`
+
+Applies to all source files under `src/`.
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["vite/client"],
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["src"]
+}
+```
+
+Key settings:
+
+- **`"types": ["vite/client"]`** — provides typings for `import.meta.env` and other Vite-specific globals.
+- **`"paths": { "@/*": ["./src/*"] }`** — enables the `@/` alias for imports anywhere under `src/`.
+- **`"jsx": "react-jsx"`** — uses the React 17+ automatic JSX runtime; no need to `import React` in every file.
+- **`"noEmit": true`** — TypeScript only type-checks; Vite handles the actual transpilation and bundling.
+
+### `tsconfig.node.json`
+
+Applies to `vite.config.ts` only.
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["vite.config.ts"]
+}
+```
+
+Targets a newer ES version and uses Node types instead of DOM types, matching
+the Node.js environment in which Vite's config file runs.
+
+---
+
+## NPM scripts
+
+Defined in `package.json`:
+
+| Script | Command | Description |
+|---|---|---|
+| `dev` | `vite --host` | Start Vite dev server, bound to all network interfaces |
+| `build` | `tsc -b && vite build` | Type-check the full project, then produce a production bundle in `dist/` |
+| `preview` | `vite preview` | Serve the `dist/` folder for local verification of the production build |
+| `lint` | `eslint .` | Run ESLint across the entire project |
+
+---
+
+## Dark mode
+
+Theme state is managed by `SettingsContext` (`src/context/SettingsContext.tsx`).
+No additional configuration is required — the logic is fully automatic on first
+load.
+
+### Initialization
+
+```typescript
+const [isDark, setIsDark] = useState(() => {
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme) {
+    return savedTheme;
+  }
+  if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    return 'dark';
+  }
+  return 'light';
+});
+```
+
+Priority order on startup:
+
+1. **`localStorage` key `theme`** — an explicit previous choice by the user always wins.
+2. **`prefers-color-scheme: dark` media query** — if no saved preference exists, the OS/browser system preference is used.
+3. **`'light'`** — the fallback when neither of the above is set.
+
+### Persistence and DOM application
+
+```typescript
+useEffect(() => {
+  const root = document.documentElement;
+  if (isDark === 'dark') {
+    root.classList.add('dark');
+  } else {
+    root.classList.remove('dark');
+  }
+  localStorage.setItem('theme', isDark);
+}, [isDark]);
+```
+
+Whenever `isDark` changes, the effect toggles the `dark` class on `<html>` and
+writes the new value to `localStorage` under the key `theme`. Tailwind's dark
+mode variant (`dark:`) reads this class to apply dark-mode styles.
+
+<Tip>
+  To toggle dark mode from anywhere in the app, consume `SettingsContext` and
+  call `setIsDark('dark')` or `setIsDark('light')`. The `/settings` route
+  exposes this toggle to end users.
+</Tip>
+
+---
+
+## User session storage
+
+User identity is persisted entirely in the browser via `localStorage`. There
+are no server-side accounts or authentication tokens.
+
+<ParamField path="user-login-finances" type="string (JSON)">
+  Stores the active user session as a JSON-serialized `UserSession` object:
+
+  ```json
+  {
+    "userName": "Alice",
+    "userAvatar": "https://api.dicebear.com/9.x/dylan/svg?seed=Andrea&..."
+  }
+  ```
+
+  Written by `saveUser()` after a successful login form submission, and updated
+  in place whenever the user changes their name or avatar in Settings. Removed
+  entirely on logout via `localStorage.removeItem('user-login-finances')`.
+
+  `SettingsContext` reads this key on initialization:
+
+  ```typescript
+  const [user, setUser] = useState<UserSession | null>(() => {
+    try {
+      const saved = localStorage.getItem('user-login-finances');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  ```
+
+  If the key is absent or contains invalid JSON, `user` is initialized to
+  `null` and the app redirects to `/login`.
+</ParamField>
+
+<Note>
+  Clearing `localStorage` (e.g. via DevTools) is equivalent to logging out.
+  The user will be redirected to `/login` on the next page load.
+</Note>

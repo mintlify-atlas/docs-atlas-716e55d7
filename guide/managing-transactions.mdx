@@ -1,0 +1,117 @@
+---
+title: Managing Transactions
+description: Create, edit, delete, and filter income and expense transactions.
+---
+
+Transactions are the core data model of Personal Finance. Each record tracks a single income or expense event.
+
+## Transaction shape
+
+```typescript
+export type Transaction = {
+  id?: string;
+  type: "income" | "expense";
+  category: string;
+  description: string;
+  date: string;
+  amount: number;
+};
+```
+
+## Creating a transaction
+
+<Steps>
+  <Step title="Navigate to /transactions">
+    Click **Transactions** in the sidebar (`Aside` component) to open the transactions page.
+  </Step>
+
+  <Step title="Open the create modal">
+    Click the **+ New Transaction** button. The `ModalTransaction` component opens with `title="Create"` and a blank form pre-populated with defaults:
+
+    - **Type** — `expense` (first option in the select)
+    - **Category** — `Food` (first category returned by the API)
+    - **Date** — today's local date
+  </Step>
+
+  <Step title="Fill in the required fields">
+    All five fields must be completed before saving:
+
+    | Field | Input type | Validation |
+    |---|---|---|
+    | Description | Text | Cannot be empty or whitespace |
+    | Amount | Number (`step="0.01"`, `min="0"`) | Must be greater than 0 |
+    | Type | Select | `income` or `expense` |
+    | Category | Select | Choose from saved categories |
+    | Date | Date picker | ISO date string (`YYYY-MM-DD`) |
+
+    Validation runs on submit inside `ModalTransaction`:
+
+    ```typescript
+    const validate = (data: Transaction): string | null => {
+      if (!data.description.trim()) return 'The description cannot be empty.';
+      if (data.amount <= 0) return 'The amount must be greater than 0';
+      return null;
+    };
+    ```
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The modal calls `createTransaction(formData)` from the API layer, then refreshes the transaction list and closes.
+  </Step>
+</Steps>
+
+## Editing a transaction
+
+<Steps>
+  <Step title="Locate the transaction">
+    Find the row in the transactions table.
+  </Step>
+
+  <Step title="Open the edit modal">
+    Click the **edit** button on that row. The `ModalTransaction` component opens with `title="Edit"` and the existing values pre-filled.
+  </Step>
+
+  <Step title="Update fields and save">
+    Modify any fields, then click **Save**. The modal calls `updateTransaction(formData)` and refreshes the list.
+  </Step>
+</Steps>
+
+## Deleting a transaction
+
+<Steps>
+  <Step title="Locate the transaction">
+    Find the row in the transactions table.
+  </Step>
+
+  <Step title="Open the delete confirmation">
+    Click the **delete** button on that row. The `ModalDelete` component opens showing a confirmation prompt with the message **"This action cannot be undone."**
+  </Step>
+
+  <Step title="Confirm deletion">
+    Click **Delete** to permanently remove the transaction, or **Cancel** to abort. While the request is in-flight the button shows **Deleting…** and is disabled.
+  </Step>
+</Steps>
+
+## Filtering transactions
+
+The transactions page exposes four independent filters driven by the `Filters` type:
+
+```typescript
+export type Filters = {
+  type?: string;     // 'income' | 'expense'
+  category?: string;
+  year?: string;
+  month?: string;
+};
+```
+
+<Tip>
+  Filters are combinable — for example, you can filter by **year + month + category** simultaneously to narrow down a specific set of transactions. Reset any individual filter by clearing its select, or use the **Reset filters** control to clear all at once.
+</Tip>
+
+| Filter | Values |
+|---|---|
+| Year | Any year present in the dataset |
+| Month | 1 – 12 (January – December) |
+| Category | Any saved category name |
+| Type | `income` or `expense` |
